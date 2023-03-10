@@ -1,14 +1,14 @@
-# XiaoYu 分配器
+# XiaoYu Allocator
 
-专为 32 位微控制器（MCU）而设计的高效 _heap_ 动态分配器。
+专为 32 位微控制器（MCU）和微处理器（MPU）而设计的高效 _heap_ 动态分配器。是 [XiaoYu OS](https://www.github.com/hemashushu/xiaoyu-os) 的核心组件之一。
 
 特点：
 
-- 为内存资源非常有限（最小支持 4KiB）的 MCU 而优化，分配器本身占用资源低；
-- 分配和释放的速度快；
-- 降低内部碎片和外部碎片的产生；
+- 为内存资源非常有限（最小支持 4KiB）的 MCU 而优化；
+- 分配和释放内存的速度快；
+- 有效降低内部碎片和外部碎片的产生。
 
-XiaoYu 分配器专为 32 位的微控制器（MCU）和微处理器（MPU）使用，最大支持 4 GiB 内存。如果需要用在 64 位的环境，请使用另一个分配器 [XiaoXuan Allocator](https://www.github.com/hemashushu/xiaoxuan-allocator) 。
+_XiaoYu Allocator_ 默认支持 128 MiB 内存，可配置为 _大内存模式_，最大支持 4 GiB 内存。如果需要用在 64 位的环境，请使用另一个分配器 [XiaoXuan Allocator](https://www.github.com/hemashushu/xiaoxuan-allocator) 。
 
 <!-- @import "[TOC]" {cmd="toc" depthFrom=2 depthTo=5 orderedList=false} -->
 
@@ -27,15 +27,15 @@ XiaoYu 分配器专为 32 位的微控制器（MCU）和微处理器（MPU）使
       - [_Free block_ 的结构](#-_free-block_-的结构)
       - [_Allocated block_ 的结构](#-_allocated-block_-的结构)
       - [标记位](#-标记位)
-  - [_Free block linked list_ 的工作过程](#-_free-block-linked-list_-的工作过程)
+  - [_可变大小分配器_ 的工作过程](#-_可变大小分配器_-的工作过程)
     - [_Free block_ 的插入及合并](#-_free-block_-的插入及合并)
   - [固定大小内存分配器](#-固定大小内存分配器)
-  - [数据页的结构](#-数据页的结构)
-  - [索引页的结构](#-索引页的结构)
-    - [索引页和数据页示例](#-索引页和数据页示例)
-    - [_free item_ 的结构](#-_free-item_-的结构)
-    - [_allocated item_ 的结构](#-_allocated-item_-的结构)
-    - [_固定大小分配器_ 的工作过程](#-_固定大小分配器_-的工作过程)
+    - [_索引页_ 的结构](#-_索引页_-的结构)
+    - [_数据页_ 的结构](#-_数据页_-的结构)
+      - [_Free item_ 的结构](#-_free-item_-的结构)
+      - [_Allocated item_ 的结构](#-_allocated-item_-的结构)
+    - [_索引页_ 和 _数据页_ 示例](#-_索引页_-和-_数据页_-示例)
+  - [_固定大小分配器_ 的工作过程](#-_固定大小分配器_-的工作过程)
     - [_数据页_ 的创建过程](#-_数据页_-的创建过程)
 - [多核环境](#-多核环境)
 - [License](#-license)
@@ -66,7 +66,7 @@ TODO::
 
 分配器的作用是将内存中的一段连续区域（以下简称为 _内存片段_）的 _开始位置（即地址）_ 和 _长度_ 通过一定的方式记录下来，并将 _内存片段_ 的开始位置返回给请求者，请求者可以随时读写这个内存片段。在请求者尚未 **声明不再使用这个内存片段** 之前，分配器需要保证这个内存片段不会被其它程序占用、修改或者移动。
 
-XiaoYu 分配器由 _可变大小分配器_ 以及 _固定大小分配器_ 两部分组成。其中 _可变大小分配器_ 使用一个 _显式的空闲块双向链表_ 实现，而 _固定大小分配器_ 使用一个 _索引页_ 和多个 _空闲项单向链表页_ 实现。
+_XiaoYu Allocator_ 由 _可变大小分配器_ 以及 _固定大小分配器_ 两部分组成。其中 _可变大小分配器_ 使用一个 _显式的空闲块双向链表_ 实现，而 _固定大小分配器_ 使用一个 _索引页_ 和多个 _空闲项单向链表页_ 实现。
 
 ### 内存的结构
 
@@ -166,7 +166,7 @@ _free block linked list_ 是一个 _有序链表_，所有 _free block_ 按照�
 - 0：表示可变大小内存片段；
 - 1：表示固定大小内存片段。
 
-### _Free block linked list_ 的工作过程
+### _可变大小分配器_ 的工作过程
 
 当分配器初始化之后，_free block linked list_ 只包含一个 _free block_，该 _free block_ 占据了整个 _data area_。
 
@@ -245,7 +245,11 @@ _固定大小分配器_ 将内存片段按照长度每 4 bytes 分为一 _类_�
 
 ![Fixed size allocator view](./images/fixed-size-allocator.png)
 
-### 数据页的结构
+#### _索引页_ 的结构
+
+索引页包含有 32 个 uint32 整数（称为 _head item offset_），每一个整数指向一个 _free item linked list_ 的表头。
+
+#### _数据页_ 的结构
 
 一个数据页里存储着多个长度相同的内存片段，这些内存片段被称为 _内存项_（_memory item_）。根据分配状态的不同，下面使用不同的名称来称呼 _内存项_：
 
@@ -262,15 +266,7 @@ _固定大小分配器_ 将内存片段按照长度每 4 bytes 分为一 _类_�
 
 ![Multiple data page](./images/multiple-data-page.png)
 
-### 索引页的结构
-
-索引页包含有 32 个 uint32 整数（称为 _head item offset_），每一个整数指向一个 _free item linked list_ 的表头。
-
-#### 索引页和数据页示例
-
-![Index page and data page](./images/index-page-and-data-page.png)
-
-#### _free item_ 的结构
+##### _Free item_ 的结构
 
 ```
 | next free item offset | class idxx | flags | free memory |
@@ -284,7 +280,7 @@ _XiaoYu Allocator_ 默认配置为 _小内存模式_，在此模式下 _memory i
 
 > 在 _小内存模式_ 下，_XiaoYu Allocator_ 最大支持 128 MiB 内存。当分配器配置为 _大内存模式_ 时，`next free item offset` 将单独占用一个 uint32，`class idx` 和 `flags` 占用另外一个 uint32，这时分配器可以管理最大 2GiB 内存。
 
-#### _allocated item_ 的结构
+##### _Allocated item_ 的结构
 
 ```
 | padding | class idx | flags | data |
@@ -294,7 +290,11 @@ _XiaoYu Allocator_ 默认配置为 _小内存模式_，在此模式下 _memory i
 
 注意，无论是 _allocated block_ 还是 _allocated item_，分配器返回给应用程序的都是其中的 `data` 字段的位置（内存指针）。当 _allocated block_ 或者 _allocated item_ 被释放时，比如应用程序调用了函数 `void free(int addr)`，通过参数传递给分配器的其实是 `data` 字段的位置。分配器需要根据这个地址往后 4 bytes 读取一个 uint32 整数，这个整数的低端 2 bits 就是 _标记位_。通过 _标记位_ 的 `type` flag 就可以区分该内存片段是 _allocated block_ 还是 _allocated item_，知道内存片段的类型之后再由相应的分配程序来执行具体的释放过程。
 
-#### _固定大小分配器_ 的工作过程
+#### _索引页_ 和 _数据页_ 示例
+
+![Index page and data page](./images/index-page-and-data-page.png)
+
+### _固定大小分配器_ 的工作过程
 
 当应用程序请求分配一个固定大小的内存片段时：
 
