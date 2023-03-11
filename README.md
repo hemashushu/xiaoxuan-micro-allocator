@@ -10,7 +10,7 @@
 
 _XiaoYu Allocator_ 默认支持 128 MiB 内存，可配置为 _大内存模式_，最大支持 4 GiB 内存。如果需要用在 64 位的环境，请使用另一个分配器 [XiaoXuan Allocator](https://www.github.com/hemashushu/xiaoxuan-allocator) 。
 
-<!-- @import "[TOC]" {cmd="toc" depthFrom=2 depthTo=5 orderedList=false} -->
+<!-- @import "[TOC]" {cmd="toc" depthFrom=2 depthTo=4 orderedList=false} -->
 
 <!-- code_chunk_output -->
 
@@ -24,16 +24,11 @@ _XiaoYu Allocator_ 默认支持 128 MiB 内存，可配置为 _大内存模式_�
   - [_Heap_ 的结构](#-_heap_-的结构)
     - [_Header_ 的结构](#-_header_-的结构)
     - [_Data area_ 的结构](#-_data-area_-的结构)
-      - [_Free block_ 的结构](#-_free-block_-的结构)
-      - [_Allocated block_ 的结构](#-_allocated-block_-的结构)
-      - [标记位](#-标记位)
   - [_可变大小分配器_ 的工作过程](#-_可变大小分配器_-的工作过程)
     - [_Free block_ 的插入及合并](#-_free-block_-的插入及合并)
   - [固定大小内存分配器](#-固定大小内存分配器)
     - [_索引页_ 的结构](#-_索引页_-的结构)
     - [_数据页_ 的结构](#-_数据页_-的结构)
-      - [_Free item_ 的结构](#-_free-item_-的结构)
-      - [_Allocated item_ 的结构](#-_allocated-item_-的结构)
     - [_索引页_ 和 _数据页_ 示例](#-_索引页_-和-_数据页_-示例)
   - [_固定大小分配器_ 的工作过程](#-_固定大小分配器_-的工作过程)
     - [_数据页_ 的创建过程](#-_数据页_-的创建过程)
@@ -326,7 +321,7 @@ _固定大小分配器_ 比起 _可变大小分配器_ 节省了分割与合并�
 
 3. 如果新建的 _数据页_ 不是指定 _class_ 的第一个数据页，则更新该 _class_ 的 _free item linked list_ 的最后一个 _free item_ 的 `next free item offset` 字段，让它值为新 _数据页_ 第一个 `free item` 的位置的偏移值。
 
-一个 _数据页_ 必须 **至少** 包含两个 _item_。比如长度为 128 bytes 的 _class_ 的 _item_，因为至少需要包含两项，所以需要申请长度为 `(128 + 8) * 2 = 272` bytes 的 _allocated block_。
+一个 _数据页_ 必须 **至少** 包含两个 _item_。比如长度为 128 bytes 的 _class_ 的 _item_，因为至少需要包含两项，所以需要申请长度为 `(128 + 4) * 2 = 264 bytes` （其中 4 bytes 是 _item_ 的 header 的长度）的 _allocated block_。
 
 如果 _XiaoYu Allocator_ 应用在 MCU 环境里，因为 MCU 的内存非常有限，可以配置 _数据页_ 内部的最大 _item_ 数量，比如限制在 4 项。
 
