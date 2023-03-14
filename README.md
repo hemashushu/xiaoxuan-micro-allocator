@@ -10,15 +10,21 @@
 
 _XiaoYu Allocator_ 默认支持 128 MiB 内存，可配置为 _大内存模式_，最大支持 4 GiB 内存。如果需要用在 64 位的环境，请使用另一个分配器 [XiaoXuan Allocator](https://www.github.com/hemashushu/xiaoxuan-allocator) 。
 
+- - -
+
+目录
+
 <!-- @import "[TOC]" {cmd="toc" depthFrom=2 depthTo=4 orderedList=false} -->
 
 <!-- code_chunk_output -->
 
 - [编译和测试](#-编译和测试)
 - [API 接口](#-api-接口)
-  - [init](#-init)
-  - [alloc](#-alloc)
-  - [free](#-free)
+  - [`minit`](#-minit)
+  - [`malloc`](#-malloc)
+  - [`realloc`](#-realloc)
+  - [`free`](#-free)
+  - [`mstatis`](#-mstatis)
 - [原理](#-原理)
   - [内存的结构](#-内存的结构)
   - [_Heap_ 的结构](#-_heap_-的结构)
@@ -43,17 +49,33 @@ TODO::
 
 ## API 接口
 
-### init
+### `minit`
 
-`fn init(heap_pos: u32, brk: u32) -> Result<(), AllocatorErr>`
+`fn minit(heap_pos: usize, brk: usize) -> Result<(), AllocatorErr>`
 
-### alloc
+Initialize the allocator.
 
-`fn alloc(size: u32) -> Result<u32, AllocatorErr>`
+### `malloc`
 
-### free
+`fn malloc(size: usize) -> Result<usize, AllocatorErr>`
 
-`fn free(addr: u32)`
+Allocates `size` bytes and returns a pointer to the allocated memory. The memory is not initialized.
+
+### `realloc`
+
+`fn realloc(addr: usize, new_size: usize) -> Result<usize, AllocatorErr>`
+
+Changes the size of the memory block pointed to by ptr to `new_size` bytes. The contents of the memory will be unchanged in the range from the start of the region up to the minimum of the old and new sizes. If the new size is larger than the old size, the added memory will not be initialized.
+
+### `free`
+
+`fn free(addr: usize) -> Result<(), AllocatorErr>`
+
+Frees the memory space pointed to by `addr`, the `addr` must have been returned by a previous call to `malloc()` or `calloc()` functions.
+
+### `mstatis`
+
+`fn mstatis(heap_pos: usize) -> ...`
 
 TODO::
 
